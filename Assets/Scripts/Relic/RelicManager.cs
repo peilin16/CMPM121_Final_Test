@@ -49,8 +49,17 @@ public class RelicManager
                 case "Grand Chronicle":
                     relic = new GrandChronicle();
                     break;
-                case "Red Necklace":
-                    relic = new RedNecklace();
+                case "Magic Bread":
+                    relic = new MagicBread();
+                    break;
+                case "Lightning Boots":
+                    relic = new LightningBoots();
+                    break;
+                case "Berserker Rage":
+                    relic = new BerserkerRage();
+                    break;
+                case "Life Link":
+                    relic = new LifeLink();
                     break;
                 default:
                     Debug.LogWarning($"Unknown relic: {name}");

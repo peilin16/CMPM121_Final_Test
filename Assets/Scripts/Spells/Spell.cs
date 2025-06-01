@@ -2,31 +2,38 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+
+
 
 public class Spell
 {
+    //spell data
     public float last_cast;
-    public SpellCaster owner;
+    public SpellCaster owner { get;  set; }
     public Hittable.Team team;
-    public SpellData data;
+    public SpellData data { get; private set; }//负责存储基础数值的数据结构，请不要更改它内部的信息
     public List<ModifierSpell> modifierSpells = new List<ModifierSpell>();
 
 
     protected bool is_applicated = false;
-    public int final_mana_cost;
+    public int final_mana_cost { get; set; }
 
 
-    public Vector3 where;
-    public Vector3 target;
-    public float final_damage;
-    public float final_cooldown;
-    public float final_secondary_damage;
-    public float final_speed;
-    public string final_trajectory;
-    public float final_life_time;
+    public Vector3 where { get; set; }
+    public Vector3 target { get; set; }
+    public float final_damage { get; set; }
+    public float final_cooldown { get; set; }
+    public float final_secondary_damage { get; set; }
+    public float final_speed { get; set; }
+    public string final_trajectory { get; set; }
+    public float final_life_time { get; set; }
+    public float final_N_val { get; set; }
     public bool castModified = true;
     public bool onHitModified = true;
-    public float spellPower;
+    public float spellPower { get; set; }
+
+
 
     public Spell(SpellCaster owner, SpellData data)
     {
@@ -40,6 +47,7 @@ public class Spell
         this.final_secondary_damage = data.base_secondary_damage;
         this.final_trajectory = data.projectile.trajectory;
         this.final_life_time = data.projectile.base_lifetime;
+        this.final_N_val = data.N_value;
     }
 
     public string GetName()
@@ -49,7 +57,6 @@ public class Spell
 
     public int GetManaCost()
     {
-
         return this.final_mana_cost;
     }
     public float GetSpeed()
@@ -83,12 +90,63 @@ public class Spell
     {
         return (last_cast + GetCooldown() < Time.time);
     }
+
+
+    //如果需要更改base的数值请使用这个方法
+    public void ResetCurrentBaseData(float power, int wave) {
+
+        //reset damage
+        data.base_damage = Mathf.FloorToInt(RPNCalculator.EvaluateFloat(data.damage.amount, wave, power));
+        data.base_mana_cost = Mathf.FloorToInt(RPNCalculator.EvaluateFloat(data.mana_cost, wave, power));
+        data.base_cooldown = RPNCalculator.EvaluateFloat(data.cooldown, wave, power);
+        if (!string.IsNullOrEmpty(data.secondary_damage))
+            data.base_secondary_damage = Mathf.FloorToInt(RPNCalculator.EvaluateFloat(data.secondary_damage, wave, power));
+
+        if (!string.IsNullOrEmpty(data.N))
+            data.N_value = Mathf.FloorToInt(RPNCalculator.EvaluateFloat(data.N, wave, power));
+        if (data.projectile != null)
+        {
+            data.projectile.base_speed = RPNCalculator.EvaluateFloat(data.projectile.speed, wave, power);
+            if (!string.IsNullOrEmpty(data.projectile.lifetime))
+                data.projectile.base_lifetime = RPNCalculator.EvaluateFloat(data.projectile.lifetime, wave, power);
+        }
+        if (data.secondary_projectile != null)
+        {
+            data.secondary_projectile.base_speed = RPNCalculator.EvaluateFloat(data.secondary_projectile.speed, wave, power);
+            if (!string.IsNullOrEmpty(data.secondary_projectile.lifetime))
+                data.secondary_projectile.base_lifetime = RPNCalculator.EvaluateFloat(data.secondary_projectile.lifetime, wave, power);
+        }
+
+
+        this.final_mana_cost = data.base_mana_cost;
+        this.final_damage = data.base_damage;
+        this.final_cooldown = data.base_cooldown;
+        this.final_speed = data.projectile.base_speed;
+        this.final_secondary_damage = data.base_secondary_damage;
+        this.final_trajectory = data.projectile.trajectory;
+        this.final_life_time = data.projectile.base_lifetime;
+        this.final_N_val = data.N_value;
+
+        this.applicateModify();
+    }
+    //更新所有的 修改器 重新调用一遍application方法
     public void applicateModify()
     {
         this.is_applicated = true;
         foreach (var modifier in modifierSpells)
             modifier.Application(this);
     }
+
+    
+
+    /// <summary>
+    ///  spell cast method 
+    /// </summary>
+    /// <param name="where"></param>
+    /// <param name="target"></param>
+    /// <param name="team"></param>
+    /// <param name="isModified"></param>
+    /// <returns></returns>
     public virtual IEnumerator Cast(Vector3 where, Vector3 target, Hittable.Team team, bool isModified = true)
     {
 
@@ -101,8 +159,8 @@ public class Spell
             int i = 0;
             foreach (var modifier in modifierSpells)
             {
-                modifier.Cast(this);
-                CoroutineManager.Instance.StartManagedCoroutine("Player_spell", modifier.name + i, modifier.CastWithCoroutine(this));
+                modifier.Cast(this);//采用修改
+                CoroutineManager.Instance.StartManagedCoroutine("Player_spell", modifier.name + i, modifier.CastWithCoroutine(this)); //如果有协程的话
                 i += 1;
 
             }
@@ -126,13 +184,15 @@ public class Spell
         
         yield return new WaitForEndOfFrame();
     }
+
+
     public void ApplyFlatSpellpowerBoost(int bonus)
     {
         final_damage += bonus;
     }
 
 
-    public void OnHit(Controller other, Vector3 impact)
+    public virtual void OnHit(Controller other, Vector3 impact)
     {
         //Debug.Log("on hit");
         if (onHitModified)
@@ -140,7 +200,7 @@ public class Spell
             int i = 0;
             foreach (var modifier in modifierSpells)
             {
-                modifier.Cast(this);
+                modifier.OnHit(this,other);// on hit change
                 CoroutineManager.Instance.StartManagedCoroutine("Player_spell", modifier.name + i, modifier.OnHitWithCoroutine(this, other));
                 i += 1;
 
@@ -179,6 +239,13 @@ public class Spell
             }
         }
 
+
+    }
+
+
+
+    public virtual void OnHitToWall(Controller other, Vector3 impact)
+    {
 
     }
 }

@@ -11,7 +11,12 @@ public class PlayerController : MonoBehaviour ,Controller
 {
 
     public PlayerCharacter player;
-
+    private long _id;
+    public long Controller_ID
+    {
+        get => _id;
+        private set => _id = value;
+    }
     public Character character
     {
         get => player;
@@ -38,7 +43,7 @@ public class PlayerController : MonoBehaviour ,Controller
 
     public int spellNum = 1;
     private int currentSpellIndex = 0;
-    public string playerID = "000001";
+    //public string playerID = "000001";
 
     public Unit unit;
     public GameObject restartUI;
@@ -49,6 +54,7 @@ public class PlayerController : MonoBehaviour ,Controller
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     public void Start()
     {
+        Controller_ID = GameManager.Instance.GenerateID();
         unit = GetComponent<Unit>();
 
         GameManager.Instance.player = this.gameObject;
@@ -67,7 +73,7 @@ public class PlayerController : MonoBehaviour ,Controller
         //var r = GameManager.Instance.relicManager.GetRelic<MysteriousMask> ("Mysterious Mask");
         //var r = GameManager.Instance.relicManager.GetRelic<KnightShield> ("Knight Shield");
         //var r = GameManager.Instance.relicManager.GetRelic<GoldenCrown> ("Golden Crown");
-        var r = GameManager.Instance.relicManager.GetRelic<RedNecklace> ("Red Necklace");
+        var r = GameManager.Instance.relicManager.GetRelic<LifeLink> ("Life Link");
         r.Application(this);
         carriedRelic.Add(r);
     }
@@ -99,19 +105,11 @@ public class PlayerController : MonoBehaviour ,Controller
         /*spellUIs[0].SetSpell(spellcaster.spells[0]); // Arcane Bolt
         spellUIs[1].SetSpell(spellcaster.spells[1]); // Magic Missile*/
         // Start mana regen
-        this.StartWave();
+    }
 
-    }
-    public void StartWave()
-    {
-        foreach (var relic in carriedRelic)
-        {
-            relic.StartWave(this);
-        }
-    }
     // Update is called once per frame
      void Update()
-    {
+     {
         var state = GameManager.Instance.state;
         if (state == GameManager.GameState.INWAVE)
         {
@@ -153,6 +151,7 @@ public class PlayerController : MonoBehaviour ,Controller
             relic.Update(this); // Pass PlayerController to relic
         }
         //Stop checking
+        //Íæ¼Ò¾²Ö¹¼ì²é
         if ((transform.position - lastPosition).sqrMagnitude < 0.001f)
         {
             localStandStillTime += Time.deltaTime;
@@ -161,6 +160,7 @@ public class PlayerController : MonoBehaviour ,Controller
                 EventBus.Instance.TriggerStandStill();
                 localStandStillTime = 0f;
             }
+
         }
         else
         {
@@ -175,7 +175,7 @@ public class PlayerController : MonoBehaviour ,Controller
         carriedRelic.Add(relic);
     }
      void OnAttack(InputValue value)
-    {
+     {
         if (GameManager.Instance.state == GameManager.GameState.PREGAME || GameManager.Instance.state == GameManager.GameState.GAMEOVER) return;
         Vector2 mouseScreen = Mouse.current.position.value;
         Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(mouseScreen);
@@ -184,7 +184,7 @@ public class PlayerController : MonoBehaviour ,Controller
         //StartCoroutine(spellcaster.modifierCast(transform.position, mouseWorld, currentSpellIndex));
 
 
-    }
+     }
 
      void OnMove(InputValue value)
     {
